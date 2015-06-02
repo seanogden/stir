@@ -1,0 +1,29 @@
+
+To convert to an ST graph, do the following steps to each func:
+0.  convert all loops to be reducible with the StructurizeCFG pass.
+    We need the CFG to be reducible because it makes it easier to determine
+    where the I() nodes should be inserted since every loop has one entry point.
+    The loops were all reducible in the ST form paper because they only used
+    CHP.  In general, you can get CFGs that are not reducible in LLVM.
+    Interestingly, if we restrict C to not have gotos, then we are guaranteed
+    to have reducible CFGs.  Using a goto, you can jump into the middle of a
+    for loop and skip the initialization of the guard variable and thus have a
+    CFG loop that's not reducible. Other languages that don't have gotos, such
+    as Java, produce CFGs that are always reducible.  Functional languages
+    apparently can produce CFGs that are not reducible.
+
+0.  run the ST(SSI + delta) pass.
+    LLVM is in SSA form, so in order to get into ST form we need to add sigmas
+    and some additional phis, I() and S().
+
+The above two steps will get the SSA formed LLVM into ST form IR.  Then we need to convert
+the ST form LLVM IR into a concurrent DFG.  We can basically follow the algorithm discussed
+in the paper about the ST-form, but there will be some changes in order to work with 
+1.  Convert all variables to copy nodes.
+2.  input arguments and globals defined outside the function are incoming channels
+3.  Add source nodes for literal assignments within the function
+4.  Convert all Sigmas to splits with preceding conditional output as the 'c' input
+5.  Convert all phis to merges
+6.  Convert all straight line code into function blocks
+7.  Convert all return values and side effects into sinks
+
